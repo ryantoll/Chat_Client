@@ -2,6 +2,27 @@
     WIN32 APPLICATION : Chat_Client Project Overview
 ========================================================================
 
+Ryan Toll 2018
+
+Contact me at:
+[last name] (dot) [first name] (at) G M A I L (dot) COM
+
+This program is the client side of an instant messenger application.
+It is designed to be paired with the corresponding server application on a private network.
+The pair is a portfolio piece meant to demonstrate competence with C++ and the Windows API.
+Be sure to connect to the server before sending a message.
+Later versions will change the UI to ensure users must connect to a server before starting.
+
+Other topics:
+Socket communication with BSD/Winsocket
+Multithreading
+UI/UX
+Class design & encapsulation
+
+========================================================================
+    Default ReadMe Below
+========================================================================
+
 AppWizard has created this Chat_Client application for you.
 
 This file contains a summary of what you will find in each of the files that

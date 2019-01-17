@@ -15,10 +15,10 @@
 //A generic queue could be made by replacing the string parameter with a generic template parameter.
 //Such an excercise is beyond the scope of this project.
 //
-//This queue should be high-performance in that locks are held only very briefly.
+//This queue should provide ample performance since locks are held only very briefly.
 //Only adding/copying a pointer and testing emptiness will happen while locked.
 //Any expensive operation such as allocating/initializing data is done outside of locks.
-//This theoretically allows for ample concurrency, not that one would notice in this application.
+//This allows for ample concurrency in situations of low to medium contention.
 ////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 #ifndef THREADSAFE_QUEUE
