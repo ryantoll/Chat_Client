@@ -92,9 +92,11 @@ LRESULT CALLBACK WndProc(HWND hMain, UINT message, WPARAM wParam, LPARAM lParam)
 				SetWindowPos(GetDlgItem(hMain, ID_USERNAME), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
 			}
 		} break;
-		case IDC_SEND_MESSAGE: { HWND h = GetDlgItem(hMain, ID_INPUT_WINDOW); sockManager.Push(wstring_to_string(Message_Box_to_Wstring(h))); SetWindowText(h, L""); } break;
+		case IDC_SEND_MESSAGE: { HWND h = GetDlgItem(hMain, ID_INPUT_WINDOW); sockManager.Push(wstring_to_string(Message_Box_to_Wstring(h))); SendMessage(hMain, WM_COMMAND, MAKEWPARAM(IDC_RESET_BOX, NULL), NULL); /*SetWindowText(h, L"");*/ } break;
+		case IDC_RESET_BOX: { SetWindowText(GetDlgItem(hMain, ID_INPUT_WINDOW), L""); } break;
 		case IDC_INCOMING_MESSAGE: { 
 			wstring out = string_to_wstring(*inputQ.load_and_pop()); 
+			out.append(L"\n");		//Adds new-line separation after each message.
 			HWND h = GetDlgItem(hMain, ID_OUTPUT_WINDOW);
 
 			//Places new messages at the end of the text in the output window.
@@ -131,6 +133,8 @@ LRESULT CALLBACK WndProc(HWND hMain, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 
+//Literally all this does right now is catch a "Return" key press in the message entry window.
+//Any other message is relayed on to the default procedure for edit boxes.
 LRESULT CALLBACK Input_Box_Subclass(HWND hInputBox, UINT message, WPARAM wParam, LPARAM lParam) {
 	switch (message)
 	{
@@ -150,4 +154,5 @@ LRESULT CALLBACK Input_Box_Subclass(HWND hInputBox, UINT message, WPARAM wParam,
 	break;
 	default: return CallWindowProc(EditHandler, hInputBox, message, wParam, lParam);
 	}
+	return CallWindowProc(EditHandler, hInputBox, message, wParam, lParam);
 }

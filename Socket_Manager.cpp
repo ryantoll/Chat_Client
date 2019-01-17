@@ -147,8 +147,12 @@ void SOCKETMANAGER::PollPort() {
 				MessageBox(hwnd, L"Connection to server lost.", L"ERROR", MB_OK);
 				continue;
 			}
+			else if (bytesRead == 1) {
+				continue;
+			}
 
-			string message = input_C_string.get();
+			//string message = input_C_string.get();
+			string message(input_C_string.get());
 			inputQ.push(message);
 			PostMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_INCOMING_MESSAGE, NULL), NULL);	//Notify main window of available messages.
 		}
