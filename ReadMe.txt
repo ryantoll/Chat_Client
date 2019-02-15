@@ -12,7 +12,7 @@ It is designed to be paired with the corresponding server application on a priva
 The pair is a portfolio piece meant to demonstrate competence with C++ and the Windows API.
 Be sure to connect to the server before sending a message.
 Later versions will change the UI to ensure users must connect to a server before starting.
-Known bug: Using return-key to send messages adds a newline character after clearing input window.
+Known bug: Using return key to send messages adds a newline character after clearing input window.
 
 Other topics:
 Socket communication with BSD/Winsocket
