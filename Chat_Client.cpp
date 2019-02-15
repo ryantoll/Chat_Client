@@ -44,6 +44,7 @@
 SOCKETMANAGER sockManager;		//Socket manager through which network interface is done. This cannot be locally defined lest it be created and destroyed with each window message processed.
 QUEUE_THREADSAFE inputQ;		//Make a global input queue for messages from the server to the client.
 WNDPROC EditHandler;			//This is the default proceedure for ALL Windows edit boxes. Conceivably more than one edit box may need to refer back to this one proceedure.
+vector<HWND> interfaceWindows, connectionWindows;
 
 LRESULT CALLBACK WndProc(HWND hMain, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -51,18 +52,21 @@ LRESULT CALLBACK WndProc(HWND hMain, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		//When the window is first opened...
 	case WM_CREATE: {
-		CreateWindow(TEXT("edit"), TEXT(""), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL | ES_READONLY, 0, 0, 500, 500, hMain, (HMENU)ID_OUTPUT_WINDOW, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("edit"), TEXT(""), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL, 0, 500, 500, 75, hMain, (HMENU)ID_INPUT_WINDOW, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("button"), TEXT("SEND"), WS_CHILD | WS_VISIBLE | WS_BORDER, 500, 500, 150, 75, hMain, (HMENU)IDC_SEND_MESSAGE, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("button"), TEXT("CONNECT"), WS_CHILD | WS_VISIBLE | WS_BORDER, 200, 600, 100, 25, hMain, (HMENU)IDC_CONNECT, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("edit"), TEXT("127"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt1, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 50, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt2, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt3, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("edit"), TEXT("1"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 150, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt4, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("edit"), TEXT("7777"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 625, 50, 25, hMain, (HMENU)ID_PORT_NUMBER, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
-		CreateWindow(TEXT("edit"), TEXT("USER NAME"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 625, 100, 25, hMain, (HMENU)ID_USERNAME, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
+		//Create all needed windows and store their handles for later use.
+		interfaceWindows.push_back(CreateWindow(TEXT("edit"), TEXT(""), WS_CHILD | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL | ES_READONLY, 0, 0, 500, 500, hMain, (HMENU)ID_OUTPUT_WINDOW, hInst, NULL));
+		interfaceWindows.push_back(CreateWindow(TEXT("edit"), TEXT(""), WS_CHILD | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL, 0, 500, 500, 75, hMain, (HMENU)ID_INPUT_WINDOW, hInst, NULL));
+		interfaceWindows.push_back(CreateWindow(TEXT("button"), TEXT("SEND"), WS_CHILD | WS_BORDER, 500, 500, 150, 75, hMain, (HMENU)IDC_SEND_MESSAGE, hInst, NULL));
+
+		connectionWindows.push_back(CreateWindow(TEXT("button"), TEXT("CONNECT"), WS_CHILD | WS_VISIBLE | WS_BORDER, 200, 600, 100, 25, hMain, (HMENU)IDC_CONNECT, hInst, NULL));
+		connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("127"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt1, hInst, NULL));
+		connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 50, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt2, hInst, NULL));
+		connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt3, hInst, NULL));
+		connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("1"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 150, 600, 50, 25, hMain, (HMENU)ID_IPv4_pt4, hInst, NULL));
+		connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("7777"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 625, 50, 25, hMain, (HMENU)ID_PORT_NUMBER, hInst, NULL));
+		connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("USER NAME"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 625, 100, 25, hMain, (HMENU)ID_USERNAME, hInst, NULL));
 
 		//Intercepts messages to input box for additional processing. Stores default procedure in EditHandler to return messages when finished.
+		//This is necessary to allow sending messages with the return key.
 		EditHandler = (WNDPROC)SetWindowLong(GetDlgItem(hMain, ID_INPUT_WINDOW), GWL_WNDPROC, (LONG)Input_Box_Subclass); 
 
 	} break;
@@ -83,13 +87,8 @@ LRESULT CALLBACK WndProc(HWND hMain, UINT message, WPARAM wParam, LPARAM lParam)
 
 			//Try to connect. Upon success, hide connection input windows.
 			if (sockManager.Connect_to_Server(ip1, ip2, ip3, ip4, port, name)) {
-				SetWindowPos(GetDlgItem(hMain, IDC_CONNECT), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
-				SetWindowPos(GetDlgItem(hMain, ID_IPv4_pt1), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
-				SetWindowPos(GetDlgItem(hMain, ID_IPv4_pt2), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
-				SetWindowPos(GetDlgItem(hMain, ID_IPv4_pt3), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
-				SetWindowPos(GetDlgItem(hMain, ID_IPv4_pt4), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
-				SetWindowPos(GetDlgItem(hMain, ID_PORT_NUMBER), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
-				SetWindowPos(GetDlgItem(hMain, ID_USERNAME), NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE);
+				for (auto i: interfaceWindows) { SetWindowPos(i, NULL, 0, 0, 0, 0, SWP_SHOWWINDOW | SWP_NOMOVE | SWP_NOSIZE); }		//Show all interface windows
+				for (auto i: connectionWindows) { SetWindowPos(i, NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE); }	//Hide all connection windows
 			}
 		} break;
 		case IDC_SEND_MESSAGE: { HWND h = GetDlgItem(hMain, ID_INPUT_WINDOW); sockManager.Push(wstring_to_string(Message_Box_to_Wstring(h))); SendMessage(hMain, WM_COMMAND, MAKEWPARAM(IDC_RESET_BOX, NULL), NULL); /*SetWindowText(h, L"");*/ } break;
