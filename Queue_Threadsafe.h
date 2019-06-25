@@ -35,24 +35,24 @@ public:
 	bool empty() { lock_guard<mutex> lock(m); return Q.empty(); }	//Lock queue and 
 
 	//Add shared_ptr to queue
-	void push(shared_ptr<string> s) {
+	void push(unique_ptr<string> s) {
 		lock_guard<mutex> lock(m);	//Unlocks mutex automatically when the variable goes out of scope.
-		Q.push(s);	//Add pointer to queue
+		Q.push(std::move(s));	//Add pointer to queue
 	}
 
 	//Add by value instead of pointer
 	void push(const string& add) {
-		auto s = make_shared<string>(add);	//Expensive operation done before locking occurs.
+		auto s = make_unique<string>(add);	//Expensive operation done before locking occurs.
 		lock_guard<mutex> lock(m);	//Unlocks mutex automatically when the variable goes out of scope.
-		Q.push(s);	//Add pointer to queue
+		Q.push(std::move(s));	//Add pointer to queue
 	}
 
 	//Return frontmost pointer in queue and remove from queue.
-	shared_ptr<string> load_and_pop() {
-		auto s = make_shared<string>();	//Create shared pointer
+	unique_ptr<string> load_and_pop() {
+		unique_ptr<string> s;			//Create unique pointer
 		lock_guard<mutex> lock(m);		//Unlocks mutex automatically when the variable goes out of scope.
 		if (Q.empty()) { return s; }	//Return nullptr if queue is empty.
-		s = Q.front();					
+		s = std::move(Q.front());					
 		Q.pop();						//Pop only after successful reading.
 		return s;
 	}
@@ -61,7 +61,7 @@ public:
 	bool load_and_pop(string& s) {
 		unique_lock<mutex> lock(m);				//Unlocks mutex automatically when the variable goes out of scope. Provides unlock functionality.
 			if (Q.empty()) { return FALSE; }	//Return nullptr if queue is empty.
-			auto p = Q.front();
+			auto p = std::move(Q.front());
 			Q.pop();							//Pop only after successful reading.
 		lock.unlock();
 
@@ -70,7 +70,7 @@ public:
 	}
 
 private:
-	queue<shared_ptr<string>> Q;	//The queue holds shared pointers 
+	queue<unique_ptr<string>> Q;	//The queue holds unique pointers
 	mutex m;
 };
 

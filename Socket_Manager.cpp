@@ -132,12 +132,21 @@ void SOCKETMANAGER::PollPort() {
 		sets.unlock();		//Unlock fd sets
 
 		for (unsigned int i = 0; i < readFDS.fd_count; ++i) {
-			unique_ptr<char[]> input_C_string(new char[1024]);		//Dynamically allocate new array to store conversion output.
-			int bytesRead = recv(readFDS.fd_array[i], input_C_string.get(), 1023, 0);
+			int bytesRead;
+			string message = "";
+			unique_ptr<char[]> input_C_string(new char[1025]);		//Dynamically allocate new array to store conversion output.
 
+			//Read from socket and append to message until no new characters are read.
+			while (true) {
+				memset(input_C_string.get(), '\0', 1025);
+				bytesRead = recv(readFDS.fd_array[i], input_C_string.get(), 1024, 0);
+				message.append(input_C_string.get());
+				if (input_C_string[1023] == '\0') { break; }
+			}
+			
 			//If connection is closed greacefully, recv() succeeds with bytesRead == 0. If it is closed in an ungraceful manner, recv() returns -1.
 			//Either way, the connection should shutdown. Failure to do so results in infinately reading emptiness into the queue to post for output.
-			if (bytesRead < 1) {
+			if (bytesRead < 1 && message == "") {
 				closesocket(readFDS.fd_array[i]);
 				s = INVALID_SOCKET;
 				sets.lock();
@@ -147,12 +156,10 @@ void SOCKETMANAGER::PollPort() {
 				MessageBox(hwnd, L"Connection to server lost.", L"ERROR", MB_OK);
 				continue;
 			}
-			else if (bytesRead == 1) {
+			else if (bytesRead == 1 && message == "") {		//Connection is still open here. Maintain socket, but skip empty message.
 				continue;
 			}
 
-			//string message = input_C_string.get();
-			string message(input_C_string.get());
 			inputQ.push(message);
 			PostMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_INCOMING_MESSAGE, NULL), NULL);	//Notify main window of available messages.
 		}

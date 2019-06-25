@@ -43,7 +43,12 @@ private:
 										//Separate threads are used to avoid UI interruptions and to conceptually separate distinct tasks.
 
 	//Send messages to server until the queue is empty.
-	void Send_Messages() { while (!Q.empty()) { string out = *Q.load_and_pop();  send(s, out.c_str(), out.length(), 0); } }
+	void Send_Messages() {
+		while (!Q.empty()) {
+			auto out = *Q.load_and_pop();
+			send(s, out.c_str(), out.length(), 0);
+		}
+	}
 };
 
 #endif // !SOCKET_MANAGER

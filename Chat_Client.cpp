@@ -91,7 +91,13 @@ LRESULT CALLBACK WndProc(HWND hMain, UINT message, WPARAM wParam, LPARAM lParam)
 				for (auto i: connectionWindows) { SetWindowPos(i, NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE); }	//Hide all connection windows
 			}
 		} break;
-		case IDC_SEND_MESSAGE: { HWND h = GetDlgItem(hMain, ID_INPUT_WINDOW); sockManager.Push(wstring_to_string(Message_Box_to_Wstring(h))); SendMessage(hMain, WM_COMMAND, MAKEWPARAM(IDC_RESET_BOX, NULL), NULL); /*SetWindowText(h, L"");*/ } break;
+		case IDC_SEND_MESSAGE: {
+			HWND h = GetDlgItem(hMain, ID_INPUT_WINDOW);
+			auto temp_out = Message_Box_to_Wstring(h);
+			auto out = wstring_to_string(temp_out);
+			sockManager.Push(out);
+			SendMessage(hMain, WM_COMMAND, MAKEWPARAM(IDC_RESET_BOX, NULL), NULL); /*SetWindowText(h, L"");*/
+		} break;
 		case IDC_RESET_BOX: { SetWindowText(GetDlgItem(hMain, ID_INPUT_WINDOW), L""); } break;
 		case IDC_INCOMING_MESSAGE: { 
 			wstring out = string_to_wstring(*inputQ.load_and_pop()); 
