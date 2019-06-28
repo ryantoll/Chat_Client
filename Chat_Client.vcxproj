@@ -156,6 +156,7 @@
   <ItemGroup>
     <ClCompile Include="About.cpp" />
     <ClCompile Include="Chat_Client.cpp" />
+    <ClCompile Include="Edit_Handler.cpp" />
     <ClCompile Include="Socket_Manager.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

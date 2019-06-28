@@ -33,7 +33,7 @@ inline std::string wstring_to_string(const std::wstring input_wstring) {
 									//unique_ptr automatically de-allocates and deletes the array it allocated when it goes out of scope.
 }
 
-inline wstring Message_Box_to_Wstring(const HWND h) {
+inline wstring Edit_Box_to_Wstring(const HWND h) {
 
 	size_t n = GetWindowTextLength(h) + 1;
 	unique_ptr<wchar_t[]>output_C_string(new wchar_t[n]);

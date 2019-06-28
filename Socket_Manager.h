@@ -24,19 +24,23 @@ public:
 
 	//The name says it all. Connection parameters are taken from user input.
 	//The username is sent to the server upon establishing a successful connection.
-	bool Connect_to_Server(string IPv4_1, string IPv4_2, string IPv4_3, string IPv4_4, string portNumber, string userName);
+	//bool Connect_to_Server(string IPv4_1, string IPv4_2, string IPv4_3, string IPv4_4, string portNumber, string userName);
+	bool Connect_to_Server();
+	void Queue_Message();
 
 	//Queue message to be sent to server.
 	void Push(string out) { Q.push(out); }
 
 private:
+	thread t;							//Variable that "holds" or associates with the network communication thread.
+	QUEUE_THREADSAFE Q;					//A custom threadsafe queue that will receive outgoing messages.
+
 	atomic_bool killConnection = TRUE;	//Cue shutdown for network communication thread.
 	SOCKET s;							//Socket through which connection is held.
 	addrinfo hints;						//Parameters for WinSock2 connection.
 	fd_set ConnectionSet, ErrorSet;		//May be redundant for client-side application with a single connection.
 	mutex mEX_Sets;						//May be redundant for client-side application with a single connection.
-	thread t;							//Variable that "holds" or associates with the network communication thread.
-	QUEUE_THREADSAFE Q;					//A custom threadsafe queue that will receive outgoing messages.
+
 
 	void PollPort();					//Function to handle network communication. Loops indefinitely until cued to shutdown or connection is lost.
 										//The work of this function is separated off into a separate thread.
@@ -52,3 +56,6 @@ private:
 };
 
 #endif // !SOCKET_MANAGER
+
+void Setup_Window_Layout();
+void Receive_Message();

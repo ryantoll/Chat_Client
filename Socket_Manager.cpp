@@ -46,7 +46,35 @@ SOCKETMANAGER::~SOCKETMANAGER() {
 	WSACleanup();
 }
 
-bool SOCKETMANAGER::Connect_to_Server(string IPv4_1, string IPv4_2, string IPv4_3, string IPv4_4, string portNumber, string userName) {
+void Setup_Window_Layout() {
+	//Create all needed windows and store their handles for later use.
+	interfaceWindows.push_back(CreateWindow(TEXT("edit"), TEXT(""), WS_CHILD | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL | ES_READONLY, 0, 0, 500, 500, hwnd, (HMENU)ID_OUTPUT_WINDOW, hInst, NULL));
+	interfaceWindows.push_back(CreateWindow(TEXT("edit"), TEXT(""), WS_CHILD | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL, 0, 500, 500, 75, hwnd, (HMENU)ID_INPUT_WINDOW, hInst, NULL));
+	interfaceWindows.push_back(CreateWindow(TEXT("button"), TEXT("SEND"), WS_CHILD | WS_BORDER, 500, 500, 150, 75, hwnd, (HMENU)IDC_SEND_MESSAGE, hInst, NULL));
+
+	connectionWindows.push_back(CreateWindow(TEXT("button"), TEXT("CONNECT"), WS_CHILD | WS_VISIBLE | WS_BORDER, 200, 600, 100, 25, hwnd, (HMENU)IDC_CONNECT, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("127"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt1, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 50, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt2, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt3, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("1"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 150, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt4, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("7777"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 625, 50, 25, hwnd, (HMENU)ID_PORT_NUMBER, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("USER NAME"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 625, 100, 25, hwnd, (HMENU)ID_USERNAME, hInst, NULL));
+
+	//Intercepts messages to input box for additional processing. Stores default procedure in EditHandler to return messages when finished.
+	//This is necessary to allow sending messages with the return key.
+	EditHandler = (WNDPROC)SetWindowLong(GetDlgItem(hwnd, ID_INPUT_WINDOW), GWL_WNDPROC, (LONG)Input_Box_Subclass);
+}
+
+//bool SOCKETMANAGER::Connect_to_Server(string IPv4_1, string IPv4_2, string IPv4_3, string IPv4_4, string portNumber, string userName) {
+bool SOCKETMANAGER::Connect_to_Server() {
+	//Read IP address and port number from input boxes
+	string IPv4_1 = wstring_to_string(Edit_Box_to_Wstring(GetDlgItem(hwnd, ID_IPv4_pt1)));
+	string IPv4_2 = wstring_to_string(Edit_Box_to_Wstring(GetDlgItem(hwnd, ID_IPv4_pt2)));
+	string IPv4_3 = wstring_to_string(Edit_Box_to_Wstring(GetDlgItem(hwnd, ID_IPv4_pt3)));
+	string IPv4_4 = wstring_to_string(Edit_Box_to_Wstring(GetDlgItem(hwnd, ID_IPv4_pt4)));
+	string portNumber = wstring_to_string(Edit_Box_to_Wstring(GetDlgItem(hwnd, ID_PORT_NUMBER)));
+	string userName = wstring_to_string(Edit_Box_to_Wstring(GetDlgItem(hwnd, ID_USERNAME)));
+
 	SOCKET newSocket = INVALID_SOCKET;
 	int status = 0;
 	addrinfo* res;
@@ -80,6 +108,9 @@ bool SOCKETMANAGER::Connect_to_Server(string IPv4_1, string IPv4_2, string IPv4_
 															//Acquire/release semantics are used to enforce adequate memory ordering at minimal cost.
 
 	send(s, userName.c_str(), userName.size(), NULL);		//Upon successful connection, send in the username so the server can register it.
+
+	for (auto i : interfaceWindows) { SetWindowPos(i, NULL, 0, 0, 0, 0, SWP_SHOWWINDOW | SWP_NOMOVE | SWP_NOSIZE); }	//Show all interface windows
+	for (auto i : connectionWindows) { SetWindowPos(i, NULL, 0, 0, 0, 0, SWP_HIDEWINDOW | SWP_NOMOVE | SWP_NOSIZE); }	//Hide all connection windows
 
 	t = thread(&SOCKETMANAGER::PollPort, this);		//Create a new thread constructed with the PollPorts function called on this object. Assign this new thread to variable t.
 	MessageBox(hwnd, L"Connected", L"INFO", MB_OK);
@@ -187,4 +218,23 @@ void SOCKETMANAGER::PollPort() {
 	}
 
 	return;
+}
+
+void SOCKETMANAGER::Queue_Message() {
+	HWND h = GetDlgItem(hwnd, ID_INPUT_WINDOW);
+	auto temp_out = Edit_Box_to_Wstring(h);
+	auto out = wstring_to_string(temp_out);
+	Q.push(out);
+	SendMessage(h, WM_COMMAND, MAKEWPARAM(IDC_RESET_BOX, NULL), NULL); /*SetWindowText(h, L"");*/
+}
+
+void Receive_Message() {
+	wstring out = string_to_wstring(*inputQ.load_and_pop());
+	out.append(L"\n");		//Adds new-line separation after each message.
+	HWND h = GetDlgItem(hwnd, ID_OUTPUT_WINDOW);
+
+	//Places new messages at the end of the text in the output window.
+	int sel = GetWindowTextLength(h);
+	SendMessage(h, EM_SETSEL, (WPARAM)sel, (LPARAM)sel);
+	SendMessage(h, EM_REPLACESEL, 0, (LPARAM)((LPWSTR)out.c_str()));
 }
