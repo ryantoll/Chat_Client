@@ -35,7 +35,7 @@ public:
 	bool empty() { lock_guard<mutex> lock(m); return Q.empty(); }	//Lock queue and 
 
 	//Add shared_ptr to queue
-	void push(unique_ptr<string> s) {
+	void push(unique_ptr<string>&& s) {
 		lock_guard<mutex> lock(m);	//Unlocks mutex automatically when the variable goes out of scope.
 		Q.push(std::move(s));	//Add pointer to queue
 	}
