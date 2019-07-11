@@ -19,6 +19,7 @@ Socket communication with BSD/Winsocket
 Multithreading
 UI/UX
 Class design & encapsulation
+Template usage
 
 ========================================================================
     Default ReadMe Below

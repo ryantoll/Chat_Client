@@ -12,9 +12,6 @@
 //The GUI thread will then process all data in the queue before returning to the Window's message loop.
 //This should give a responsive user experience as the blocking operations are brief and as needed.
 //
-//A generic queue could be made by replacing the string parameter with a generic template parameter.
-//Such an excercise is beyond the scope of this project.
-//
 //This queue should provide ample performance since locks are held only very briefly.
 //Only adding/copying a pointer and testing emptiness will happen while locked.
 //Any expensive operation such as allocating/initializing data is done outside of locks.
@@ -26,7 +23,7 @@
 
 #include "stdafx.h"
 
-class QUEUE_THREADSAFE {
+template <typename T> class QUEUE_THREADSAFE {
 public:
 	//Contructor and Destructor are implicitly default constructed.
 	//QUEUE_THREADSAFE(){};
@@ -34,22 +31,22 @@ public:
 
 	bool empty() { lock_guard<mutex> lock(m); return Q.empty(); }	//Lock queue and 
 
-	//Add shared_ptr to queue
-	void push(unique_ptr<string>&& s) {
+	//Add unique_ptr to queue
+	void push(unique_ptr<T>&& s) {
 		lock_guard<mutex> lock(m);	//Unlocks mutex automatically when the variable goes out of scope.
-		Q.push(std::move(s));	//Add pointer to queue
+		Q.push(std::move(s));		//Add pointer to queue
 	}
 
 	//Add by value instead of pointer
-	void push(const string& add) {
-		auto s = make_unique<string>(add);	//Expensive operation done before locking occurs.
-		lock_guard<mutex> lock(m);	//Unlocks mutex automatically when the variable goes out of scope.
-		Q.push(std::move(s));	//Add pointer to queue
+	void push(const T& add) {
+		auto s = make_unique<T>(add);	//Expensive operation done before locking occurs.
+		lock_guard<mutex> lock(m);		//Unlocks mutex automatically when the variable goes out of scope.
+		Q.push(std::move(s));			//Add pointer to queue
 	}
 
 	//Return frontmost pointer in queue and remove from queue.
-	unique_ptr<string> load_and_pop() {
-		unique_ptr<string> s;			//Create unique pointer
+	unique_ptr<T> load_and_pop() {
+		unique_ptr<T> s;				//Create unique pointer
 		lock_guard<mutex> lock(m);		//Unlocks mutex automatically when the variable goes out of scope.
 		if (Q.empty()) { return s; }	//Return nullptr if queue is empty.
 		s = std::move(Q.front());					
@@ -57,8 +54,8 @@ public:
 		return s;
 	}
 
-	//Read frontmost string into user-provided input string and remove from queue.
-	bool load_and_pop(string& s) {
+	//Read frontmost T into user-provided input T and remove from queue.
+	bool load_and_pop(T& s) {
 		unique_lock<mutex> lock(m);				//Unlocks mutex automatically when the variable goes out of scope. Provides unlock functionality.
 			if (Q.empty()) { return FALSE; }	//Return nullptr if queue is empty.
 			auto p = std::move(Q.front());
@@ -70,7 +67,7 @@ public:
 	}
 
 private:
-	queue<unique_ptr<string>> Q;	//The queue holds unique pointers
+	queue<unique_ptr<T>> Q;	//The queue holds unique pointers
 	mutex m;
 };
 

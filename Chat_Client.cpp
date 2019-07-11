@@ -14,6 +14,7 @@
 //Multithreading
 //UI/UX
 //Class design & encapsulation
+//Template usage
 //
 //Be sure to review the classes Socket_Manager as well as Queue_Threadsafe for their respective overviews.
 //
@@ -41,10 +42,11 @@
 #include "stdafx.h"
 
 //Global variables
-SOCKETMANAGER sockManager;		//Socket manager through which network interface is done. This cannot be locally defined lest it be created and destroyed with each window message processed.
+SOCKETMANAGER sockManager;				//Socket manager through which network interface is done. This cannot be locally defined lest it be created and destroyed with each window message processed.
+WNDPROC EditHandler;					//This is the default proceedure for ALL Windows edit boxes. Conceivably more than one edit box may need to refer back to this one proceedure.
+QUEUE_THREADSAFE<string> inputQ;		//Make a global input queue for messages from the server to the client.
+
 vector<HWND> interfaceWindows, connectionWindows;
-WNDPROC EditHandler;			//This is the default proceedure for ALL Windows edit boxes. Conceivably more than one edit box may need to refer back to this one proceedure.
-QUEUE_THREADSAFE inputQ;		//Make a global input queue for messages from the server to the client.
 
 LRESULT CALLBACK WndProc(HWND hMain, UINT message, WPARAM wParam, LPARAM lParam)
 {
