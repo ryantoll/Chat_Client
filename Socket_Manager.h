@@ -12,10 +12,14 @@
 //I would then shut down the connection gracefully in the catch block to always ensure proper shutdown.
 ////////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+#include "stdafx.h"
+
 #ifndef SOCKET_MANAGER
 #define SOCKET_MANAGER
 
-#include "stdafx.h"
+LRESULT CALLBACK Connection_Box_Subclass(HWND hInputBox, UINT message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK Input_Box_Subclass(HWND, UINT, WPARAM, LPARAM);	//Manual pre-processing of messages to the input box to add additional functionallity.
+extern WNDPROC EditHandler;		//This holds the default window proceedure for edit boxes. Any message I don't manually process will be passed along here.
 
 class SOCKETMANAGER {
 public:
@@ -33,7 +37,7 @@ public:
 
 private:
 	thread t;							//Variable that "holds" or associates with the network communication thread.
-	QUEUE_THREADSAFE Q;					//A custom threadsafe queue that will receive outgoing messages.
+	QUEUE_THREADSAFE<string> Q;			//A custom threadsafe queue that will receive outgoing messages.
 
 	atomic_bool killConnection = TRUE;	//Cue shutdown for network communication thread.
 	SOCKET s;							//Socket through which connection is held.
@@ -55,7 +59,7 @@ private:
 	}
 };
 
-#endif // !SOCKET_MANAGER
-
 void Setup_Window_Layout();
 void Receive_Message();
+
+#endif // !SOCKET_MANAGER

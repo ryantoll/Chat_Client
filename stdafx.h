@@ -33,13 +33,11 @@ extern HWND hwnd;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK Input_Box_Subclass(HWND, UINT, WPARAM, LPARAM);	//Manual pre-processing of messages to the input box to add additional functionallity.
-extern WNDPROC EditHandler;		//This holds the default window proceedure for edit boxes. Any message I don't manually process will be passed along here.
 extern vector<HWND> interfaceWindows, connectionWindows;
 
 //Utilities
 #include "Queue_Threadsafe.h"
-extern QUEUE_THREADSAFE inputQ;		//Make a global input queue for messages from the server to the client.
+extern QUEUE_THREADSAFE<string> inputQ;		//Make a global input queue for messages from the server to the client.
 #include "Utilities.h"
 
 //Classes

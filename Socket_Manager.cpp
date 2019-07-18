@@ -63,6 +63,8 @@ void Setup_Window_Layout() {
 	//Intercepts messages to input box for additional processing. Stores default procedure in EditHandler to return messages when finished.
 	//This is necessary to allow sending messages with the return key.
 	EditHandler = (WNDPROC)SetWindowLong(GetDlgItem(hwnd, ID_INPUT_WINDOW), GWL_WNDPROC, (LONG)Input_Box_Subclass);
+	//Also subclass IP input windows for additional functionality and more intuitive UI. See Edit_handler.cpp for details.
+	for (auto i = connectionWindows.begin() + 1; i != connectionWindows.end(); ++i) { SetWindowLong(*i, GWL_WNDPROC, (LONG)Connection_Box_Subclass); }
 }
 
 //bool SOCKETMANAGER::Connect_to_Server(string IPv4_1, string IPv4_2, string IPv4_3, string IPv4_4, string portNumber, string userName) {
