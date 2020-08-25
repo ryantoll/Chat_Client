@@ -28,22 +28,17 @@ SOCKETMANAGER::SOCKETMANAGER() {
 }
 
 SOCKETMANAGER::~SOCKETMANAGER() {
-	//Close all sockets
-	closesocket(s);
+	closesocket(s);	// Close all sockets
+	{
+		lock_guard<mutex> sets(mEX_Sets);		// Lock mutex for the three fd sets
+		for (size_t i = 0; i < ConnectionSet.fd_count; ++i) { closesocket(ConnectionSet.fd_array[i]); }
+		for (size_t i = 0; i < ErrorSet.fd_count; ++i) { closesocket(ErrorSet.fd_array[i]); }
+	}
+	// Wait to cue thread exit until just before joining. If not, thread t may finish first and prematurely terminate the program upon completion.
+	killConnection.store(TRUE, memory_order_release);	// Set "kill connection" flag to TRUE. This will cue the loop polling the sockets to exit.
+	if (t.joinable()) { t.join(); }		// Join the connection thread before destruction. Check first that it's joinable.
 
-	unique_lock<mutex> sets(mEX_Sets);		//Lock mutex for the three fd sets
-	for (size_t i = 0; i < ConnectionSet.fd_count; ++i) { closesocket(ConnectionSet.fd_array[i]); }
-	for (size_t i = 0; i < ErrorSet.fd_count; ++i) { closesocket(ErrorSet.fd_array[i]); }
-	sets.unlock();							//Unlock mutex for the three fd sets once done.
-											//Note, unlocking may be overkill here since the SOCKETMANAGER destructor should only be run when everything else is shutting down.
-											//unique_lock<> or lock_guard<> both release the mutex automatically in their in their own destructor when the local variable expires.
-
-											//Wait to cue thread exit until just before joining. If not, thread t may finish first and prematurely terminate the program upon completion.
-	killConnection.store(TRUE, memory_order_release);		//Set "kill connection" flag to TRUE. This will cue the loop polling the sockets to exit.
-	if (t.joinable()) { t.join(); }		//Join the connection thread before destruction. Check first that it's joinable.
-
-										//Cleanup any lingering WinSock data
-	WSACleanup();
+	WSACleanup();	// Cleanup any lingering WinSock data
 }
 
 void Setup_Window_Layout() {
@@ -52,13 +47,13 @@ void Setup_Window_Layout() {
 	interfaceWindows.push_back(CreateWindow(TEXT("edit"), TEXT(""), WS_CHILD | WS_BORDER | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL, 0, 500, 500, 75, hwnd, (HMENU)ID_INPUT_WINDOW, hInst, NULL));
 	interfaceWindows.push_back(CreateWindow(TEXT("button"), TEXT("SEND"), WS_CHILD | WS_BORDER, 500, 500, 150, 75, hwnd, (HMENU)IDC_SEND_MESSAGE, hInst, NULL));
 
-	connectionWindows.push_back(CreateWindow(TEXT("button"), TEXT("CONNECT"), WS_CHILD | WS_VISIBLE | WS_BORDER, 200, 600, 100, 25, hwnd, (HMENU)IDC_CONNECT, hInst, NULL));
-	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("127"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt1, hInst, NULL));
-	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 50, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt2, hInst, NULL));
-	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt3, hInst, NULL));
-	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("1"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 150, 600, 50, 25, hwnd, (HMENU)ID_IPv4_pt4, hInst, NULL));
-	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("7777"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 625, 50, 25, hwnd, (HMENU)ID_PORT_NUMBER, hInst, NULL));
-	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("USER NAME"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 625, 100, 25, hwnd, (HMENU)ID_USERNAME, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("button"), TEXT("CONNECT"), WS_CHILD | WS_VISIBLE | WS_BORDER, 200, 0, 100, 25, hwnd, (HMENU)IDC_CONNECT, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("127"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 0, 50, 25, hwnd, (HMENU)ID_IPv4_pt1, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 50, 0, 50, 25, hwnd, (HMENU)ID_IPv4_pt2, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("0"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 0, 50, 25, hwnd, (HMENU)ID_IPv4_pt3, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("1"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 150, 0, 50, 25, hwnd, (HMENU)ID_IPv4_pt4, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("7777"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 25, 50, 25, hwnd, (HMENU)ID_PORT_NUMBER, hInst, NULL));
+	connectionWindows.push_back(CreateWindow(TEXT("edit"), TEXT("USER NAME"), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 100, 25, 100, 25, hwnd, (HMENU)ID_USERNAME, hInst, NULL));
 
 	//Intercepts messages to input box for additional processing. Stores default procedure in EditHandler to return messages when finished.
 	//This is necessary to allow sending messages with the return key.
@@ -127,8 +122,8 @@ void SOCKETMANAGER::PollPort() {
 	while (!killConnection.load(memory_order_acquire)) {
 		unique_lock<mutex> sets(mEX_Sets, defer_lock);		//Associates variable "sets" with mutex mEX_Sets while leaving the mutex unlocked.
 
-																			//The function gets its own copy of the fd sets to prevent data collision/contention.
-																			//This is remade each pass with the most current data.
+																		//The function gets its own copy of the fd sets to prevent data collision/contention.
+																		//This is remade each pass with the most current data.
 		sets.lock();		//Lock fd sets
 			fd_set readFDS = ConnectionSet, exceptFDS = ErrorSet;		//Read from all vaild connections.
 		sets.unlock();		//Unlock fd sets
@@ -144,7 +139,7 @@ void SOCKETMANAGER::PollPort() {
 		//Idle until there are messages to receive. Output is still sent in idle loop.
 		while (ready == 0 && !killConnection.load(memory_order_acquire)) {
 			Send_Messages();	//Check on each loop for output to send.
-			Sleep(25);			//Denoted in miliseconds.
+			Sleep(sleepTime);			//Denoted in miliseconds.
 			sets.lock();		//Lock fd sets
 				readFDS = ConnectionSet;
 				exceptFDS = ErrorSet;
@@ -159,67 +154,45 @@ void SOCKETMANAGER::PollPort() {
 			MessageBox(hwnd, string_to_wstring(gai_strerrorA(x)).c_str(), L"ERROR", MB_OK);
 		}
 
-
-		sets.lock();		//Lock fd sets
-		fd_set writeFDS = ConnectionSet;	//Write to all valid connections.
-		sets.unlock();		//Unlock fd sets
-
-		for (unsigned int i = 0; i < readFDS.fd_count; ++i) {
-			int bytesRead;
-			string message = "";
-			unique_ptr<char[]> input_C_string(new char[1025]);		//Dynamically allocate new array to store conversion output.
-
-			//Read from socket and append to message until no new characters are read.
-			while (true) {
-				memset(input_C_string.get(), '\0', 1025);
-				bytesRead = recv(readFDS.fd_array[i], input_C_string.get(), 1024, 0);
-				message.append(input_C_string.get());
-				if (input_C_string[1023] == '\0') { break; }
-			}
-			
-			//If connection is closed greacefully, recv() succeeds with bytesRead == 0. If it is closed in an ungraceful manner, recv() returns -1.
-			//Either way, the connection should shutdown. Failure to do so results in infinately reading emptiness into the queue to post for output.
-			if (bytesRead < 1 && message == "") {
-				closesocket(readFDS.fd_array[i]);
-				s = INVALID_SOCKET;
-				sets.lock();
-				FD_CLR(readFDS.fd_array[i], &ConnectionSet);
-				if (ConnectionSet.fd_count == 0) { killConnection.store(TRUE, memory_order_release); }	//If there are no connection left, flag shutdown.
-				sets.unlock();
-				MessageBox(hwnd, L"Connection to server lost.", L"ERROR", MB_OK);
-				continue;
-			}
-			else if (bytesRead == 1 && message == "") {		//Connection is still open here. Maintain socket, but skip empty message.
-				continue;
-			}
-
+		auto message = string{ };
+		auto bytesRead = ReadSocketMessage(s, message);
+		if (bytesRead > 0 && message.size() > 0) {
 			inputQ.push(message);
-			PostMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_INCOMING_MESSAGE, NULL), NULL);	//Notify main window of available messages.
+			PostMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_INCOMING_MESSAGE, NULL), NULL);	// Notify main window of available messages.
 		}
-
-		
-		//This doesn't seem to get triggered as written since the error actually pops up in the recv() command.
-		//Error handling has been incorporated into the recv() loop.
-		//The loop below illustrates how I would otherwise clear out sockets that have fallen into an error state.
-
-		//Close any sockets that return error codes.
-//		for (unsigned int i = 0; i < exceptFDS.fd_count; ++i) {
-//			SOCKET s = exceptFDS.fd_array[i];
-//			closesocket(s);
-//			sets.lock();	//Lock fd sets
-//			FD_CLR(s, &ConnectionSet);
-//			FD_CLR(s, &ErrorSet);
-//			sets.unlock();	//Unlock fd sets
-//
-//			//Send error message.
-//			wstring out = L"Connection to ";
-//			out += L"_____";		//Placeholder. Connections are unnamed at this point.
-//			out += L" was lost.";
-//			MessageBox(hwnd, out.c_str(), L"ERROR", MB_OK);
-//		}
+		else if (bytesRead < 0) {
+			closesocket(s);
+			killConnection.store(TRUE, memory_order_release);
+			MessageBox(hwnd, L"Connection to server lost.", L"ERROR", MB_OK);
+			continue;
+		}
+		else { continue; }
 	}
 
 	return;
+}
+
+int ReadSocketMessage(SOCKET s, string& msg) {
+	constexpr auto buffSize{ 1024 };							// Define buffer size
+	char input_C_string[buffSize];								// Buffer to hold input
+	int bytes{ 0 };												// Initialize var to track bytes received (or error)
+	msg.clear();												// Clear return string
+	
+	while (true) {
+		memset(input_C_string, '\0', buffSize);					// Fill array with null values ensuring null-terminator
+		auto len = recv(s, input_C_string, buffSize - 1, 0);	// Receive message
+		if (len < 1) {
+			closesocket(s);
+			bytes = len;			// Error! Close socket and return -1 to flag error state
+			break;
+		}
+		else {
+			bytes += len;
+			msg.append(input_C_string);						// Append input to return string
+			if (input_C_string[buffSize - 2] == '\0') { break; }	// Message completed since it didn't fill the buffer
+		}
+	}
+	return bytes;
 }
 
 void SOCKETMANAGER::Queue_Message() {

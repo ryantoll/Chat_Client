@@ -17,6 +17,8 @@
 #ifndef SOCKET_MANAGER
 #define SOCKET_MANAGER
 
+constexpr auto sleepTime = 25;
+
 LRESULT CALLBACK Connection_Box_Subclass(HWND hInputBox, UINT message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK Input_Box_Subclass(HWND, UINT, WPARAM, LPARAM);	//Manual pre-processing of messages to the input box to add additional functionallity.
 extern WNDPROC EditHandler;		//This holds the default window proceedure for edit boxes. Any message I don't manually process will be passed along here.
@@ -61,5 +63,6 @@ private:
 
 void Setup_Window_Layout();
 void Receive_Message();
+int ReadSocketMessage(SOCKET s, std::string& msg);
 
 #endif // !SOCKET_MANAGER
